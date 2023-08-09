@@ -1,4 +1,4 @@
-@import "https://js.arcgis.com/4.27/@arcgis/core/assets/esri/themes/dark/main.css";
+@import "https://js.arcgis.com/4.27/@arcgis/core/assets/esri/themes/light/main.css";
 
 
 html, body, #heading, #root {
@@ -30,13 +30,15 @@ html, body, #heading, #root {
   padding: 0;
   margin: 0;
   height: calc(100% - 44px);
-  width: 100%
+  width: 100%;
+  position: relative;
+  z-index: 2;
 }
-/* #bgExpand{
+#bgExpand{
   position: absolute;
   top: 190px;
   left: 15px;
-} */
+}
 
 #topbar {
   background: #fff;
@@ -91,9 +93,13 @@ html, body, #heading, #root {
 
 #uploadExpand{
   position: absolute;
-  top: 102px;
+  top: 43px;
   left: 140px;
   /* z-index: 5; */
+}
+
+#searchWidget-suggest-menu{
+  position: relative;
 }
 
 #mainWindow {

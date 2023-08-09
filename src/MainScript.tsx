@@ -21,6 +21,9 @@ import WebScene from "@arcgis/core/WebScene";
 import Weather from "@arcgis/core/widgets/Weather";
 import Daylight from "@arcgis/core/widgets/Daylight";
 import Geometry from "@arcgis/core/geometry/Geometry"
+import Expand from "@arcgis/core/widgets/Expand"
+
+
 let activeWidget = null; 
 
 const portalUrl = "https://www.arcgis.com";
@@ -28,12 +31,13 @@ const portalUrl = "https://www.arcgis.com";
 esriConfig.apiKey = "AAPKef29b82e1d5242c8a5f70a07a2e606efknDZO_U878U9VVvnsoLSl0SDAgJoqHQdE8X1uNJT9H6e0qzR4qYC2yFAcIEB5ykk"
 
 export const initialize = (container) => {
+
     const map = new Map({
         basemap: "topo-vector"
     });
 
     const view = new MapView({
-        container: container.current,
+        container: container.viewDiv.current,
         map: map,
         center: [112.62, -0.8],
         zoom: 6,
@@ -115,6 +119,212 @@ export const initialize = (container) => {
 
     graphicsLayer.add(airportGraphic);
     graphicsLayer.add(seaportGraphic);
+
+    const layer = new FeatureLayer({
+        url: "https://jakartasatu.jakarta.go.id/server/rest/services/Pelengkap_Peta_Dasar_P1000/FeatureServer/67"
+    });
+
+    map.add(layer, 0);
+
+    view.ui.move(["zoom"], {
+        position: "bottom-left",
+        index: 3
+    })
+
+    container.distanceButton.current
+    .addEventListener("click", function () {
+        setActiveWidget(null);
+        if (!this.classList.contains("active")) {
+            setActiveWidget("distance");
+        } else {
+            setActiveButton(null);
+        }
+    });
+
+    container.areaButton.current
+    .addEventListener("click", function () {
+        setActiveWidget(null);
+        if (!this.classList.contains("active")) {
+            setActiveWidget("area");
+        } else {
+            setActiveButton(null);
+        }
+    });
+
+    function setActiveWidget(type) {
+        switch (type) {
+            case "distance":
+                activeWidget = new DistanceMeasurement2D({
+                    view: view
+                });
+
+                // skip the initial 'new measurement' button
+                activeWidget.viewModel.start();
+
+                view.ui.add(activeWidget, "top-right");
+                setActiveButton(container.distanceButton.current);
+                break;
+            case "area":
+                activeWidget = new AreaMeasurement2D({
+                    view: view
+                });
+
+                // skip the initial 'new measurement' button
+                activeWidget.viewModel.start();
+
+                view.ui.add(activeWidget, "top-right");
+                setActiveButton(container.areaButton.current);
+                break;
+            case null:
+                if (activeWidget) {
+                    view.ui.remove(activeWidget);
+                    activeWidget.destroy();
+                    activeWidget = null;
+                }
+                break;
+        }
+    }
+
+    function setActiveButton(selectedButton) {
+        // focus the view to activate keyboard shortcuts for sketching
+        view.focus();
+        let elements = document.getElementsByClassName("active");
+        for (let i = 0; i < elements.length; i++) {
+            elements[i].classList.remove("active");
+        }
+        if (selectedButton) {
+            selectedButton.classList.add("active");
+        }
+    }
+
+    const searchWidget = new Search({            
+        view: view                
+    });
+
+    view.ui.add(searchWidget, "top-left");
+
+    const homeBtn = new Home({
+        view: view
+    }, "homeBtn");
+
+    view.ui.add(homeBtn, "top-left");
+
+
+    const locateBtn = new Locate({
+        view: view
+    },'locateBtn');
+
+    view.ui.add(locateBtn, "top-left");
+
+    const expand = new Expand({
+        view: view,
+        content: container.mainWindow.current
+    },'uploadExpand');
+
+    view.ui.add(expand, "top-left");
+
+    const toggle = new BasemapToggle({
+        view: view,
+        nextBasemap: "hybrid"
+    });
+
+    view.ui.add(toggle, "bottom-left");
+
+    container.uploadForm.current
+    .addEventListener("change", (event) => {
+        const fileName = event.target.value.toLowerCase();
+
+        if (fileName.indexOf(".zip") !== -1) {
+        //is file a zip - if not notify user
+        generateFeatureCollection(fileName);
+        } else {
+            container.uploadStatus.current.innerHTML =
+                '<p style="color:red">Add shapefile as .zip file</p>';
+        }
+    });
+
+    function generateFeatureCollection(fileName) {
+        let name = fileName.split(".");
+        // Chrome adds c:\fakepath to the value - we need to remove it
+        name = name[0].replace("c:\\fakepath\\", "");
+
+        container.uploadStatus.current.innerHTML =
+            "<b>Loading... </b>" + name;
+
+        // define the input params for generate see the rest doc for details
+        // https://developers.arcgis.com/rest/users-groups-and-items/generate.htm
+        const params = {
+            name: name,
+            targetSR: view.spatialReference,
+            maxRecordCount: 1000,
+            enforceInputFileSizeLimit: true,
+            enforceOutputJsonSizeLimit: true
+        };
+
+        // generalize features to 10 meters for better performance
+        params.generalize = true;
+        params.maxAllowableOffset = 10;
+        params.reducePrecision = true;
+        params.numberOfDigitsAfterDecimal = 0;
+
+        const myContent = {
+            filetype: "shapefile",
+            publishParameters: JSON.stringify(params),
+            f: "json"
+        };
+
+        // use the REST generate operation to generate a feature collection from the zipped shapefile
+        request(portalUrl + "/sharing/rest/content/features/generate", {
+            query: myContent,
+            body: container.uploadForm.current,
+            responseType: "json"
+        })
+        .then((response) => {
+            const layerName =
+                response.data.featureCollection.layers[0].layerDefinition.name;
+                container.uploadStatus.current.innerHTML =
+                "<b>Loaded: </b>" + layerName;
+            addShapefileToMap(response.data.featureCollection);
+            })
+            .catch((error) => {
+                container.uploadStatus.current.innerHTML =
+                "<p style='color:red;max-width: 500px;'>" + error.message + "</p>";
+            });
+        }
+
+        function addShapefileToMap(featureCollection) {
+            // add the shapefile to the map and zoom to the feature collection extent
+            // if you want to persist the feature collection when you reload browser, you could store the
+            // collection in local storage by serializing the layer using featureLayer.toJson()
+            // see the 'Feature Collection in Local Storage' sample for an example of how to work with local storage
+            let sourceGraphics = [];
+
+            const layers = featureCollection.layers.map((layer) => {
+                const graphics = layer.featureSet.features.map((feature) => {
+                return Graphic.fromJSON(feature);
+                });
+                sourceGraphics = sourceGraphics.concat(graphics);
+                const featureLayer = new FeatureLayer({
+                objectIdField: "FID",
+                source: graphics,
+                fields: layer.layerDefinition.fields.map((field) => {
+                    return Field.fromJSON(field);
+                })
+                });
+                return featureLayer;
+                // associate the feature with the popup on click to enable highlight and zoom to
+            });
+            map.addMany(layers);
+            view.goTo(sourceGraphics).catch((error) => {
+                if (error.name != "AbortError") {
+                console.error(error);
+                }
+            });
+
+            container.uploadStatus.current.innerHTML = "";
+        }
     
     return view;
 }
+
+
