@@ -117,14 +117,19 @@ export const initialize = (container) => {
 
     });
 
-    graphicsLayer.add(airportGraphic);
-    graphicsLayer.add(seaportGraphic);
+    // SAMPLE GRAPHICS LAYER FOR CURRENT PROJECT
+    // graphicsLayer.add(airportGraphic);
+    // graphicsLayer.add(seaportGraphic);
 
-    const layer = new FeatureLayer({
-        url: "https://jakartasatu.jakarta.go.id/server/rest/services/Pelengkap_Peta_Dasar_P1000/FeatureServer/67"
-    });
+    for(let i = 0; i < 16; i++){
+        const layer = new FeatureLayer({
+            url: "https://services3.arcgis.com/JyARPALVPGdEzzgv/arcgis/rest/services/Polygons_CE_Website/FeatureServer/" + i
+        });
+    
+        map.add(layer, 0);
+    }
 
-    map.add(layer, 0);
+    
 
     view.ui.move(["zoom"], {
         position: "bottom-left",

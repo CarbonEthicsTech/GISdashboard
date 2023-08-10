@@ -40,7 +40,7 @@ export default function Main(){
             <div id="uploadExpand"></div>
             <div ref={mainWindow} id="mainWindow">
             <div>
-            <div style={{paddingLeft : "4px;"}}>
+            <div style={{paddingLeft : "4px"}}>
                 <p>Add a zipped shapefile to the map.</p>
                 <form ref={uploadForm} encType="multipart/form-data" method="post" id="uploadForm">
                 <div className="field">

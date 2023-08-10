@@ -32,7 +32,6 @@ html, body, #heading, #root {
   height: calc(100% - 44px);
   width: 100%;
   position: relative;
-  z-index: 2;
 }
 #bgExpand{
   position: absolute;
@@ -45,6 +44,11 @@ html, body, #heading, #root {
   position: absolute;
   top: 102px;
   left: 60px;
+  z-index: 2;
+}
+
+.esri-ui {
+  z-index: 3;
 }
 
 .action-button {
